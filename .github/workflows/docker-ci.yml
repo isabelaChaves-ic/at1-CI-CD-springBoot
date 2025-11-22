@@ -1,0 +1,59 @@
+name: Docker CI/CD Pipeline
+
+on:
+  push:
+    # REQUISITO: Executar apenas nessa branch "docker"
+    branches: [ "docker" ]
+
+jobs:
+  # JOB 1: Build e Testes (Rodando DENTRO de um container)
+  build-test:
+    runs-on: ubuntu-latest
+    # REQUISITO: Utilize contêineres na pipeline
+    container:
+      image: maven:3.9.9-eclipse-temurin-21
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # Como já estamos dentro de um container Maven com Java 21,
+      # rodamos o maven direto para testar e gerar o .jar
+      - name: Rodar Testes e Gerar Pacote
+        run: mvn -B package
+
+      # Salvamos o .jar para o próximo job usar
+      - name: Upload do Artefato Temporário
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  # JOB 2: Criar Imagem Docker e Enviar (CD)
+  docker-push:
+    needs: build-test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Download do Artefato
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+
+      - name: Build e Push da Imagem Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .     
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/at2-t2-tarefas:latest

@@ -22,7 +22,7 @@ jobs:
         cache: 'maven'
 
     - name: Executar Testes
-      run: mvn -B tests
+      run: mvn -B test
 
   cd-build:
     needs: ci-tests
